@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>檔案上傳網頁</title>
+    <style>
+        body>div {
+            margin: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+
+    <!-- Icon -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+
+
+</head>
+
+<body>
+    <div id="uploaders" class="uploaders">
+        <div>
+            <label>擬答標題</label>
+            <input id="titleInput" type="text" name="title">
+        </div>
+        <div>
+            <input value="" type="file" class="form-control" id="pdfUploader" name="file" accept=".pdf">
+            <input value="" type="file" class="form-control" id="wordUploader" name="file" accept=".doc,.docx">
+        </div>
+        <button id="submitBtn" class="btn btn-outline-success h-50">上傳</button>
+    </div>
+    <div id="status"></div>
+    <table id="answersTable" class="table w-50 text-center">
+        <thead>
+            <td>
+                選取
+            </td>
+            <td>
+                標題
+            </td>
+            <td>
+                word
+            </td>
+            <td>
+                pdf
+            </td>
+        </thead>
+        <tbody id="answersTableBody">
+
+        </tbody>
+    </table>
+    <script>
+        //server url
+        const url = "http://localhost:3000";
+
+
+
+        //init setting
+        clearUploader();
+        showAnswersTable();
+
+
+
+
+
+
+
+
+        //上傳檔案
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.addEventListener('click', async function(e) {
+            const formData = new FormData();
+            formData.append('title', titleInput.value);
+            formData.append('pdf', pdfUploader.files[0], pdfUploader.files[0].name);
+            formData.append('word', wordUploader.files[0], wordUploader.files[0].name);
+
+            await fetch(url + "/upload", {
+                    method: 'POST',
+                    body: formData,
+                })
+                .then(async response => {
+                    const text = await response.text();
+                    if (response.status === 200) { //ok        
+                        //上傳成功，重整頁面
+                        location.href = "./"; //重整頁面
+                    } else if (text === "LIMIT_FILE_SIZE") {
+                        document.getElementById("status").innerHTML = "每個檔案皆不可超過5MB";
+                    } else if (text === "LIMIT_FILENAME_SIZE") {
+                        document.getElementById("status").innerHTML = "檔名皆不可超過80個中/英文字";
+                    } else {
+                        document.getElementById("status").innerHTML = "上傳失敗";
+                    }
+                })
+                .catch(error => {
+                    console.error(error);
+                    document.getElementById("status").innerHTML = "上傳失敗";
+                });
+            clearUploader();
+
+
+        })
+
+        //清空上傳表單
+        function clearUploader() {
+            const titleInput = document.getElementById('titleInput');
+            titleInput.value = "";
+
+            const pdfUploader = document.getElementById("pdfUploader");
+            pdfUploader.value = "";
+
+            const wordUploader = document.getElementById('wordUploader');
+            wordUploader.value = "";
+        }
+
+        //顯示擬答列表
+        async function showAnswersTable() {
+            await fetch(url + "/answersTable", {
+                    method: "GET",
+                }).then(response => response.json())
+                .then((resJson) => {
+                    if (resJson === undefined) return;
+                    const tableRows = resJson;
+                    const answersTableBody = document.getElementById("answersTableBody");
+                    answersTableBody.innerHTML = "";
+                    for (const row of tableRows) {
+                        answersTableBody.innerHTML += `
+                            <td> 
+                                <input type="checkbox" id="${row.id}">
+                            </td>
+                            <td> 
+                                ${row.title}
+                            </td>
+                            <td> 
+                                <a class="btn btn-primary" href="./uploads/${row.word}" target="_blank" role="button">
+                                    <i class="bi bi-file-earmark-word-fill"></i>
+                                    WORD
+                                </a>
+                            </td>
+                            <td> 
+                                <a class="btn btn-danger" href="./uploads/${row.pdf}" target="_blank" role="button">
+                                    <i class="bi bi-file-earmark-pdf-fill"></i>
+                                    PDF
+                                </a>
+                            </td>
+                        `
+                    }
+                }).catch(error => {
+                    console.error(error);
+                })
+        }
+    </script>
+</body>
+
+</html>
